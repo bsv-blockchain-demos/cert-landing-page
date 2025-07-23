@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useAuthContext } from "../context/authContext";
 import { useWalletContext } from "../context/walletContext";
+import { toast } from "react-hot-toast";
 
 export default function Home() {
     const { certificates, setCertificates } = useAuthContext();
@@ -29,7 +30,26 @@ export default function Home() {
             },
             body: JSON.stringify({ fieldsToReveal: fieldsToReveal }),
         });
-        setCertificates([response.certificatesWithData]);
+
+        console.log(response)
+
+        if (!response.ok) {
+            const error = await response.json();
+            toast.error(error.error, {
+                duration: 5000,
+                position: 'top-center',
+                id: 'certificates-fetch-error',
+            });
+            return;
+        }
+        
+        const data = await response.json();
+        setCertificates([data.certificatesWithData]);
+        toast.success('Certificates fetched successfully', {
+            duration: 5000,
+            position: 'top-center',
+            id: 'certificates-fetch-success',
+        });
     };
 
     if (certificates.length > 0) {
