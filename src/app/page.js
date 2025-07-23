@@ -1,12 +1,20 @@
 "use client"
 
-import React from "react";
+import React, { useState } from "react";
 import { useAuthContext } from "../context/authContext";
 import { useWalletContext } from "../context/walletContext";
 
 export default function Home() {
     const { certificates, setCertificates } = useAuthContext();
     const { userWallet, initializeWallet } = useWalletContext();
+    const [fieldsToReveal, setFieldsToReveal] = useState([
+        "username",
+        "residence",
+        "age",
+        "gender",
+        "email",
+        "work"
+    ]);
 
     const handleLogin = async () => {
         if (!userWallet) {
@@ -15,13 +23,13 @@ export default function Home() {
         }
         
         const response = await fetch("/api/get-certificates", {
-            method: "GET",
+            method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
+            body: JSON.stringify({ fieldsToReveal: fieldsToReveal }),
         });
-        const data = await response.json();
-        setCertificates(data.certificatesWithData);
+        setCertificates([response.certificatesWithData]);
     };
 
     if (certificates.length > 0) {
