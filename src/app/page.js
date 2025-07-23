@@ -49,9 +49,10 @@ export default function Home() {
             <div className="absolute top-4 right-4">
                 <button
                     onClick={initializeWallet}
-                    className="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                    disabled={userWallet}
+                    className="bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Connect Wallet
+                    {userWallet ? "Wallet Connected" : "Connect Wallet"}
                 </button>
             </div>
             
