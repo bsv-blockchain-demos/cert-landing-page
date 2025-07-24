@@ -1,7 +1,9 @@
 "use client"
 
+import {
+    WalletClient,
+} from '@bsv/sdk'
 import { useContext, createContext, useState, useEffect, useCallback } from "react";
-import { WalletClient } from "@bsv/sdk";
 import { toast } from "react-hot-toast";
 
 const WalletContext = createContext();
@@ -9,6 +11,21 @@ const WalletContext = createContext();
 export const WalletContextProvider = ({ children }) => {
     const [userWallet, setUserWallet] = useState(null);
     const [userPubKey, setUserPubKey] = useState(null);
+    //const [serverWallet, setServerWallet] = useState(null);
+
+    // useEffect(() => {
+    //     const initializeServerWallet = async () => {
+    //         try {
+    //             const { wallet } = await fetch('/api/create-wallet', {
+    //                 method: 'POST',
+    //             });
+    //             setServerWallet(wallet);
+    //         } catch (error) {
+    //             console.error('Failed to initialize server wallet:', error);
+    //         }
+    //     };
+    //     initializeServerWallet();
+    // }, []);
 
     const initializeWallet = useCallback(async () => {
         try {

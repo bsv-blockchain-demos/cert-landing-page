@@ -1,13 +1,14 @@
 "use client"
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuthContext } from "../context/authContext";
 import { useWalletContext } from "../context/walletContext";
+import { MasterCertificate } from "@bsv/sdk";
 import { toast } from "react-hot-toast";
 
 export default function Home() {
-    const { certificates, setCertificates } = useAuthContext();
     const { userWallet, initializeWallet } = useWalletContext();
+    const { certificates, setCertificates } = useAuthContext();
     const [fieldsToReveal, setFieldsToReveal] = useState([
         "username",
         "residence",
@@ -16,6 +17,8 @@ export default function Home() {
         "email",
         "work"
     ]);
+    const [fields, setFields] = useState([]);
+    const [decryptedFields, setDecryptedFields] = useState([]);
 
     const handleLogin = async () => {
         if (!userWallet) {
@@ -44,7 +47,9 @@ export default function Home() {
         }
         
         const data = await response.json();
-        setCertificates([data.certificatesWithData]);
+        console.log("data", data)
+        setCertificates(data.certificateWithData);
+        setFields(data.certificateWithData.fields);
         toast.success('Certificates fetched successfully', {
             duration: 5000,
             position: 'top-center',
@@ -52,7 +57,24 @@ export default function Home() {
         });
     };
 
-    if (certificates.length > 0) {
+    const decryptFields = async () => {
+        const decryptedFields = await MasterCertificate.decryptFields(
+            userWallet,
+            certificates.keyring,
+            fields,
+            certificates.certifier,
+        );
+        console.log("decryptedFields", decryptedFields)
+        setDecryptedFields(decryptedFields);
+    }
+
+    useEffect(() => {
+        if (certificates) {
+            decryptFields();
+        }
+    }, [certificates]);
+
+    if (certificates) {
         return (
             <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
                 <div className="max-w-md w-full space-y-6">
@@ -61,8 +83,8 @@ export default function Home() {
                         <div className="bg-slate-800 rounded-lg p-6">
                             <h3 className="text-lg font-semibold text-green-400 mb-4">Logged in successfully with certificate</h3>
                             <ul className="space-y-2">
-                                {certificates.map((certificate, index) => (
-                                    <li key={index} className="text-sm text-slate-300 break-all">{certificate}</li>
+                                {Object.entries(decryptedFields).map(([key, value]) => (
+                                    <li key={key}>{key}: {value}</li>
                                 ))}
                             </ul>
                         </div>

@@ -30,13 +30,13 @@ export async function POST(req) {
             return NextResponse.json({ error: "No certificates found" }, { status: 404 });
         }
 
-        const certificatesWithData = await userWallet.proveCertificate({
-            certificate: certificates.certificates[0],
-            fieldsToReveal,
-            verifier: "02f4403c1eecce28c8c82aab508ecdb763b8d924d4a235350c4e805d4e2d7f8819", // Pubkey from server/app
-        });
+        // const certificatesWithData = await userWallet.proveCertificate({
+        //     certificate: certificates.certificates[0],
+        //     fieldsToReveal,
+        //     verifier: process.env.NEXT_PUBLIC_SERVER_PUBLIC_KEY,
+        // });
 
-        return NextResponse.json({ certificatesWithData });
+        return NextResponse.json({ certificateWithData: certificates.certificates[0] });
     } catch (error) {
         console.error("Error fetching certificates:", error);
         return NextResponse.json({ error: "Failed to fetch certificates" }, { status: 500 });
