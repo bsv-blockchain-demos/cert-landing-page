@@ -20,6 +20,7 @@ export default function Home() {
     const [fields, setFields] = useState([]);
     const [decryptedFields, setDecryptedFields] = useState([]);
 
+    // Get the certificate from the server
     const handleLogin = async () => {
         if (!userWallet) {
             initializeWallet();
@@ -57,7 +58,9 @@ export default function Home() {
         });
     };
 
+    // Decrypt the certificate fields to show on frontend (user data)
     const decryptFields = async () => {
+        // TODO Decrypt keyring keys (?)
         const decryptedFields = await MasterCertificate.decryptFields(
             userWallet,
             certificates.keyring,
