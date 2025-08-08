@@ -7,7 +7,7 @@ import { MasterCertificate } from "@bsv/sdk";
 import { toast } from "react-hot-toast";
 
 export default function Home() {
-    const { userWallet, initializeWallet } = useWalletContext();
+    const { userWallet, initializeWallet, userPubKey } = useWalletContext();
     const { certificates, setCertificates } = useAuthContext();
     const [fieldsToReveal, setFieldsToReveal] = useState([
         "username",
@@ -61,10 +61,16 @@ export default function Home() {
     // Decrypt the certificate fields to show on frontend (user data)
     const decryptFields = async () => {
         // TODO Decrypt keyring keys (?)
+        console.log("certificates", certificates)
+        console.log("fields", certificates.fields)
+        console.log("keyring", certificates.keyring)
+        console.log(Object.keys(certificates.keyring).length)
+        console.log("counterparty", certificates.certifier)
+
         const decryptedFields = await MasterCertificate.decryptFields(
             userWallet,
             certificates.keyring,
-            fields,
+            certificates.fields,
             certificates.certifier,
         );
         console.log("decryptedFields", decryptedFields)
@@ -121,7 +127,7 @@ export default function Home() {
                             disabled={!userWallet}
                             className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Login with Certificate
+                            Login with COMMONSource Certificate
                         </button>
                     </div>
                 </div>
