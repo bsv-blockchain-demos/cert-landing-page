@@ -7,7 +7,7 @@ import { MasterCertificate } from "@bsv/sdk";
 import { toast } from "react-hot-toast";
 
 export default function Home() {
-    const { userWallet, initializeWallet, userPubKey } = useWalletContext();
+    const { userWallet, initializeWallet, authFetch } = useWalletContext();
     const { certificates, setCertificates } = useAuthContext();
     const [fieldsToReveal, setFieldsToReveal] = useState([
         "username",
@@ -17,7 +17,7 @@ export default function Home() {
         "email",
         "work"
     ]);
-    const [fields, setFields] = useState([]);
+    const [user, setUser] = useState(null);
     const [decryptedFields, setDecryptedFields] = useState([]);
 
     // Get the certificate from the server
@@ -26,36 +26,39 @@ export default function Home() {
             initializeWallet();
             return;
         }
-        
-        const response = await fetch("/api/get-certificates", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ fieldsToReveal: fieldsToReveal }),
-        });
 
-        console.log(response)
+        try {
+            const authResponse = await authFetch.fetch('http://localhost:8080/login', {
+                method: 'POST'
+            });
 
-        if (!response.ok) {
-            const error = await response.json();
-            toast.error(error.error, {
+            console.log(authResponse);
+            const data = await authResponse.json();
+            console.log("data", data);
+
+            if (!data.success) {
+                toast.error(data.error, {
+                    duration: 5000,
+                    position: 'top-center',
+                    id: 'login-error',
+                });
+                return;
+            }
+
+            setCertificates(data.certificates[0]);
+            setUser(data.user);
+            toast.success('Login successful', {
                 duration: 5000,
                 position: 'top-center',
-                id: 'certificates-fetch-error',
+                id: 'login-success',
             });
-            return;
+        } catch (error) {
+            toast.error('Login failed', {
+                duration: 5000,
+                position: 'top-center',
+                id: 'login-error',
+            });
         }
-        
-        const data = await response.json();
-        console.log("data", data)
-        setCertificates(data.certificateWithData);
-        setFields(data.certificateWithData.fields);
-        toast.success('Certificates fetched successfully', {
-            duration: 5000,
-            position: 'top-center',
-            id: 'certificates-fetch-success',
-        });
     };
 
     // Decrypt the certificate fields to show on frontend (user data)
@@ -83,7 +86,7 @@ export default function Home() {
         }
     }, [certificates]);
 
-    if (certificates) {
+    if (user) {
         return (
             <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
                 <div className="max-w-md w-full space-y-6">
@@ -114,14 +117,14 @@ export default function Home() {
                     {userWallet ? "Wallet Connected" : "Connect Wallet"}
                 </button>
             </div>
-            
+
             <div className="flex items-center justify-center min-h-screen p-4">
                 <div className="max-w-md w-full space-y-6">
                     <div className="text-center">
                         <h2 className="text-xl font-semibold mb-2">Certify your identity</h2>
                     </div>
-                    
-                    <div className="space-y-4">            
+
+                    <div className="space-y-4">
                         <button
                             onClick={handleLogin}
                             disabled={!userWallet}
