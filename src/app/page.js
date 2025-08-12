@@ -8,19 +8,54 @@ import { MasterCertificate, Utils } from "@bsv/sdk";
 import { toast } from "react-hot-toast";
 
 export default function Home() {
-    const { userWallet, initializeWallet, authFetch } = useWalletContext();
+    const { userWallet, initializeWallet } = useWalletContext();
     const { certificates, setCertificates, loginWithCertificate } = useAuthContext();
     const { createUserDid, createIdentityVCData, userDid, initializeDidServices } = useDidContext();
-    const [fieldsToReveal, setFieldsToReveal] = useState([
-        "username",
-        "residence",
-        "age",
-        "gender",
-        "email",
-        "work"
-    ]);
+    // Removed fieldsToReveal as it's no longer used with proper BSV auth flow
     const [user, setUser] = useState(null);
     const [decryptedFields, setDecryptedFields] = useState([]);
+    const [certificateGenerated, setCertificateGenerated] = useState(false);
+
+    // Certificate generation similar to CommonSourceOnboarding
+    const handleGenerateCertificate = async () => {
+        try {
+            if (!userWallet) {
+                toast.error('Please connect wallet first');
+                return;
+            }
+
+            if (!userDid) {
+                toast.error('Please create DID first');
+                return;
+            }
+
+            // Create identity certificate using CommonSourceOnboarding server
+            const serverPubKey = process.env.NEXT_PUBLIC_SERVER_PUBLIC_KEY || "024c144093f5a2a5f71ce61dce874d3f1ada840446cebdd283b6a8ccfe9e83d9e4";
+            
+            console.log('Acquiring certificate from CommonSourceOnboarding server...');
+            
+            const certResponse = await userWallet.acquireCertificate({
+                type: Utils.toBase64(Utils.toArray('CommonSource user identity', 'utf8')),
+                fields: {
+                    username: 'landing-page-user',
+                    email: 'user@landing-page.com',
+                    isVC: 'true',
+                    didRef: userDid ? userDid.split(':').pop().substring(0, 8) : 'pending'
+                },
+                acquisitionProtocol: "issuance",
+                certifier: serverPubKey,
+                certifierUrl: "http://localhost:8080",
+            });
+            
+            console.log('Certificate acquired:', certResponse);
+            toast.success('Identity certificate generated successfully');
+            setCertificateGenerated(true);
+
+        } catch (error) {
+            console.error('Error generating certificate:', error);
+            toast.error(`Failed to generate certificate: ${error.message}`);
+        }
+    };
 
     // Enhanced login with DID/VC support
     const handleLogin = async () => {
@@ -46,45 +81,14 @@ export default function Home() {
                 return;
             }
 
-            // If no wallet certificate, try server authentication with AuthFetch
-            const authResponse = await authFetch.fetch('http://localhost:8080/login', {
-                method: 'POST',
-                retryCounter: 10,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    requestVC: true, // Request VC format if available
-                    fieldsToReveal: fieldsToReveal
-                })
-            });
-
-            console.log(authResponse);
-            const data = await authResponse.json();
-            console.log("data", data);
-
-            if (!data.success) {
-                toast.error(data.error, {
-                    duration: 5000,
-                    position: 'top-center',
-                    id: 'login-error',
-                });
-                return;
-            }
-
-            // Check if certificate is in VC format
-            const certificate = data.certificates[0] || data.certificates;
-            if (certificate && certificate.fields && certificate.fields['@context']) {
-                console.log('Received VC-format certificate from server');
-            }
-
-            setCertificates(data.certificates);
-            setUser(data.user);
-            toast.success('Login successful', {
+            // No wallet certificate found - user needs to acquire a certificate first
+            console.log('No certificate found in wallet - user needs to acquire certificate first');
+            toast.error('No certificate found. Please acquire a certificate first.', {
                 duration: 5000,
                 position: 'top-center',
-                id: 'login-success',
+                id: 'no-certificate-error',
             });
+            return;
         } catch (error) {
             console.error('Login error:', error);
             toast.error('Login failed', {
@@ -222,11 +226,49 @@ export default function Home() {
                         >
                             Create New DID
                         </button>
+
+                        {userDid && !certificateGenerated && (
+                            <button
+                                onClick={handleGenerateCertificate}
+                                disabled={!userWallet || !userDid}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Generate Certificate
+                            </button>
+                        )}
+
+                        <button
+                            onClick={() => {
+                                localStorage.clear();
+                                setCertificates(null);
+                                setUser(null);
+                                window.location.reload();
+                            }}
+                            className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-slate-900 text-sm"
+                        >
+                            Clear Local Data & Refresh
+                        </button>
+
+                        <button
+                            onClick={async () => {
+                                toast.info('Server connection: Use proper BSV authentication flow instead of test endpoints', { duration: 3000 });
+                            }}
+                            className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-3 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:ring-offset-slate-900 text-sm"
+                        >
+                            BSV Auth Info
+                        </button>
                         
                         {userDid && (
                             <div className="mt-4 p-3 bg-slate-800 rounded-lg">
                                 <p className="text-sm text-slate-400">DID Created:</p>
                                 <p className="text-xs text-green-400 break-all">{userDid}</p>
+                            </div>
+                        )}
+
+                        {certificateGenerated && (
+                            <div className="mt-4 p-3 bg-green-900 rounded-lg">
+                                <p className="text-sm text-green-400">✅ Certificate Generated Successfully!</p>
+                                <p className="text-xs text-slate-400">You can now login with your certificate</p>
                             </div>
                         )}
                     </div>
