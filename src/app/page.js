@@ -108,14 +108,21 @@ export default function Home() {
 
             initializeDidServices();
             
-            // Create user DID
+            // Create or retrieve user DID
             const didResult = await createUserDid();
-            console.log('DID created:', didResult);
+            console.log('DID result:', didResult);
             
-            toast.success(`DID created: ${didResult.did.substring(0, 30)}...`, {
-                duration: 5000,
-                position: 'top-center',
-            });
+            if (didResult.existing) {
+                toast.success(`Using existing DID: ${didResult.did.substring(0, 30)}...`, {
+                    duration: 5000,
+                    position: 'top-center',
+                });
+            } else {
+                toast.success(`DID created: ${didResult.did.substring(0, 30)}...`, {
+                    duration: 5000,
+                    position: 'top-center',
+                });
+            }
             
             return didResult;
         } catch (error) {

@@ -23,7 +23,7 @@ export const WalletContextProvider = ({ children }) => {
 
     const initializeWallet = useCallback(async () => {
         try {
-            const newWallet = new WalletClient('auto', 'localhost:4000');
+            const newWallet = new WalletClient('auto', 'localhost');
 
             const isConnected = await newWallet.isAuthenticated();
             if (!isConnected) {

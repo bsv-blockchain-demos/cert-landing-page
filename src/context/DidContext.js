@@ -25,16 +25,28 @@ export const DidContextProvider = ({ children }) => {
     }
   }, [userWallet, bsvDidService]);
 
-  // Create user DID
+  // Create or retrieve user DID
   const createUserDid = useCallback(async () => {
     try {
       if (!bsvDidService) {
         initializeDidServices();
       }
       
+      // Check if DID already exists in localStorage (for persistence across apps)
+      const storedDid = localStorage.getItem('bsv_user_did');
+      if (storedDid) {
+        console.log('[DidContext] Found existing DID:', storedDid);
+        setUserDid(storedDid);
+        return { did: storedDid, existing: true };
+      }
+      
+      // Create new DID if none exists
       const didResult = await bsvDidService.createUserDid();
       setUserDid(didResult.did);
-      console.log('[DidContext] User DID created:', didResult.did);
+      
+      // Store DID for reuse across apps
+      localStorage.setItem('bsv_user_did', didResult.did);
+      console.log('[DidContext] User DID created and stored:', didResult.did);
       return didResult;
     } catch (error) {
       console.error('[DidContext] Error creating user DID:', error);
@@ -81,6 +93,15 @@ export const DidContextProvider = ({ children }) => {
       initializeDidServices();
     }
   }, [userWallet, bsvDidService, initializeDidServices]);
+
+  // Load stored DID on mount
+  useEffect(() => {
+    const storedDid = localStorage.getItem('bsv_user_did');
+    if (storedDid && !userDid) {
+      console.log('[DidContext] Loading stored DID:', storedDid);
+      setUserDid(storedDid);
+    }
+  }, [userDid]);
 
   const value = {
     userDid,
