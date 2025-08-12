@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthContextProvider } from "../context/authContext";
 import { WalletContextProvider } from "../context/walletContext";
+import { DidContextProvider } from "../context/DidContext";
 import ToasterWrapper from "../components/toasts";
 
 const geistSans = Geist({
@@ -25,12 +26,14 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthContextProvider>
-          <WalletContextProvider>
-            <ToasterWrapper />
-            {children}
-          </WalletContextProvider>
-        </AuthContextProvider>
+        <WalletContextProvider>
+          <DidContextProvider>
+            <AuthContextProvider>
+              <ToasterWrapper />
+              {children}
+            </AuthContextProvider>
+          </DidContextProvider>
+        </WalletContextProvider>
       </body>
     </html>
   );
