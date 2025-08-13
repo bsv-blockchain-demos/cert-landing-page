@@ -13,8 +13,12 @@ dotenv.config();
 const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY;
 const WALLET_STORAGE_URL = process.env.WALLET_STORAGE_URL;
 
+const COMMON_SOURCE_CERT_TYPE = Buffer.from("CommonSource user identity").toString('base64');
+
 console.log("SERVER_PRIVATE_KEY", SERVER_PRIVATE_KEY);
 console.log("WALLET_STORAGE_URL", WALLET_STORAGE_URL);
+
+const RECEIVED_CERTIFICATES = {};
 
 export const createWalletClient = async (keyHex, walletStorageUrl, chain) => {
     const rootKey = PrivateKey.fromHex(keyHex)
@@ -53,14 +57,15 @@ async function main() {
         logger: console,
         logLevel: 'debug',
         certificatesToRequest: {
-            'identity-certifier-key': {
-                types: [Buffer.from("CommonSource user identity").toString('base64')],
-                certifiers: ["02f4403c1eecce28c8c82aab508ecdb763b8d924d4a235350c4e805d4e2d7f8819"],
-            }
+            types: {
+                [COMMON_SOURCE_CERT_TYPE]: ["username", "email", "isVC", "didRef"]
+            },
+            certifiers: ["02f4403c1eecce28c8c82aab508ecdb763b8d924d4a235350c4e805d4e2d7f8819"],
         },
         // Certificate validation callback for comprehensive verification
-        onCertificatesReceived: async (certificates) => {
+        onCertificatesReceived: async (senderPublicKey, certificates, _request, response, _next) => {
             console.log(`[Auth] Validating ${certificates.length} certificates...`);
+            console.log(`[Auth] certificates: ${certificates}`);
 
             for (const cert of certificates) {
                 try {
@@ -74,9 +79,22 @@ async function main() {
                     // TODO: Add certificate signature verification against known certifier
                     console.log(`[Auth] Certificate validation passed for cert: ${cert.serialNumber?.substring(0, 8)}...`);
 
+                    if (RECEIVED_CERTIFICATES[senderPublicKey]) {
+                        if (RECEIVED_CERTIFICATES[senderPublicKey][cert.type]) {
+                            console.log(`[Auth] Certificate already received for type: ${cert.type}`);
+                        } else {
+                            console.log(`[Auth] Certificate received for type: ${cert.type}`);
+                            RECEIVED_CERTIFICATES[senderPublicKey][cert.type] = cert;
+                        }
+                    } else {
+                        console.log(`[Auth] Certificate received for type: ${cert.type}`);
+                        RECEIVED_CERTIFICATES[senderPublicKey] = {
+                            [cert.type]: cert
+                        };
+                    }
+
                 } catch (error) {
                     console.error(`[Auth] Certificate validation failed:`, error);
-                    throw new Error(`Certificate verification failed: ${error.message}`);
                 }
             }
 
@@ -113,28 +131,25 @@ async function main() {
     });
 
     // 5. Define your routes as usual
-    app.post('/.well-known/auth', wellKnownAuthHandler)
     app.post('/login', (req, res) => {
         // At this point:
         // req.auth.identityKey = user's public key
         // req.auth.certificates = user's provided certs
-        console.log('req.auth:', req.auth);
-        console.log('req.auth.certificates:', req.auth?.certificates);
+        console.log("RECEIVED_CERTIFICATES:", RECEIVED_CERTIFICATES);
 
         // Verify certificate content if needed
-        const cert = req.auth.certificates;
+        const cert = RECEIVED_CERTIFICATES[req.auth.identityKey][COMMON_SOURCE_CERT_TYPE];
         console.log("cert:", cert)
 
-        if (!cert) return res.status(401).send('No certificate provided');
+        if (!cert) {
+            res.status(401).send('No certificate provided');
+            return;
+        }
 
-        // Create a session
-        req.session.user = {
-            identityKey: req.auth.identityKey,
-            name: cert.fields.name,
-            email: cert.fields.email
-        };
+        console.log("req.session:", req.session);
+        console.log("req", req);
 
-        res.json({ success: true, user: req.session.user, certificates: cert });
+        res.json({ success: true, user: cert.subject, certificates: cert });
     });
 
     app.listen(8080, () => {

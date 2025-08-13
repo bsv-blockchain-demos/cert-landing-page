@@ -17,17 +17,7 @@ export const WalletContextProvider = ({ children }) => {
     useEffect(() => {
         if (!userWallet) return;
 
-        const requestedCertificates = {
-            certifiers: {
-              'identity-certifier-key': {
-                certifiers: ["02f4403c1eecce28c8c82aab508ecdb763b8d924d4a235350c4e805d4e2d7f8819"],
-                certificateTypes: [Buffer.from("CommonSource user identity").toString('base64')],
-              }
-            },
-            acquisitionProtocol: 'direct'
-          }
-
-        const authFetch = new AuthFetch(userWallet, requestedCertificates);
+        const authFetch = new AuthFetch(userWallet);
         setAuthFetch(authFetch);
     }, [userWallet]);
 

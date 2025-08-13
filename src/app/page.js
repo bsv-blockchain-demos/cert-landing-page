@@ -27,9 +27,10 @@ export default function Home() {
             return;
         }
 
-        try {
+        try {     
             const authResponse = await authFetch.fetch('http://localhost:8080/login', {
-                method: 'POST'
+                method: 'POST',
+                retryCounter: 10,
             });
 
             console.log(authResponse);
@@ -45,7 +46,7 @@ export default function Home() {
                 return;
             }
 
-            setCertificates(data.certificates[0]);
+            setCertificates(data.certificates);
             setUser(data.user);
             toast.success('Login successful', {
                 duration: 5000,
