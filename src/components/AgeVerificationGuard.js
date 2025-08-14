@@ -29,17 +29,37 @@ export default function AgeVerificationGuard({ children }) {
       console.log('[AgeGuard] Starting age verification...');
       setIsLoading(true);
 
-      // Get certificates from wallet using the correct API
-      const certificatesResult = await wallet.listCertificates({
-        types: [Utils.toBase64(Utils.toArray('CommonSource user identity', 'utf8'))],
-        certifiers: [COMMON_SOURCE_SERVER_KEY],
-        limit: 10
-      });
-      
-      console.log(`[AgeGuard] Certificate query result:`, certificatesResult);
-      
-      const certificates = certificatesResult?.certificates || [];
-      console.log(`[AgeGuard] Found ${certificates.length} certificates in wallet`);
+      let certificatesResult;
+      let certificates = [];
+
+      try {
+        // Get certificates from wallet using the correct API with error handling
+        console.log('[AgeGuard] Attempting to list certificates...');
+        certificatesResult = await wallet.listCertificates({
+          types: [Utils.toBase64(Utils.toArray('CommonSource user identity', 'utf8'))],
+          certifiers: [COMMON_SOURCE_SERVER_KEY],
+          limit: 10
+        });
+        
+        console.log(`[AgeGuard] Raw certificate query result:`, certificatesResult);
+        
+        // Handle different response formats
+        if (typeof certificatesResult === 'string') {
+          try {
+            certificatesResult = JSON.parse(certificatesResult);
+          } catch (parseError) {
+            console.error('[AgeGuard] Failed to parse certificate response as JSON:', parseError);
+            throw new Error(`Certificate response parsing failed: ${parseError.message}`);
+          }
+        }
+        
+        certificates = certificatesResult?.certificates || [];
+        console.log(`[AgeGuard] Found ${certificates.length} certificates in wallet`);
+        
+      } catch (certError) {
+        console.error('[AgeGuard] Error retrieving certificates:', certError);
+        throw new Error(`Certificate retrieval failed: ${certError.message}`);
+      }
 
       if (certificatesResult?.totalCertificates === 0 || certificates.length === 0) {
         console.log('[AgeGuard] No certificates found - redirecting to CommonSourceOnboarding');
@@ -55,31 +75,47 @@ export default function AgeVerificationGuard({ children }) {
 
       for (const certificate of certificates) {
         try {
-          console.log(`[AgeGuard] Checking certificate:`, certificate.serialNumber);
+          console.log(`[AgeGuard] Checking certificate:`, certificate.serialNumber || 'unknown');
+          
+          // Validate certificate structure before attempting decryption
+          if (!certificate.keyring || !certificate.fields || !certificate.certifier) {
+            console.warn(`[AgeGuard] Certificate missing required fields, skipping...`);
+            continue;
+          }
           
           // Decrypt the certificate fields to access the age
-          const decryptedFields = await MasterCertificate.decryptFields(
-            wallet,
-            certificate.keyring,
-            certificate.fields,
-            certificate.certifier
-          );
-          
-          console.log(`[AgeGuard] Decrypted fields:`, decryptedFields);
+          let decryptedFields;
+          try {
+            decryptedFields = await MasterCertificate.decryptFields(
+              wallet,
+              certificate.keyring,
+              certificate.fields,
+              certificate.certifier
+            );
+            
+            console.log(`[AgeGuard] Decrypted fields:`, decryptedFields);
+          } catch (decryptError) {
+            console.warn(`[AgeGuard] Certificate decryption failed:`, decryptError);
+            continue;
+          }
           
           // Check if this certificate contains age information
-          if (decryptedFields.age) {
+          if (decryptedFields && decryptedFields.age) {
             const age = parseInt(decryptedFields.age);
-            if (!isNaN(age) && age > 0) {
+            if (!isNaN(age) && age > 0 && age < 150) {
               userAge = age;
               validCertificate = certificate;
               ageVerified = age >= MINIMUM_AGE;
-              console.log(`[AgeGuard] Found age in certificate: ${age} years old`);
+              console.log(`[AgeGuard] Found valid age in certificate: ${age} years old`);
               break;
+            } else {
+              console.warn(`[AgeGuard] Invalid age value found: ${decryptedFields.age}`);
             }
+          } else {
+            console.log(`[AgeGuard] No age field found in certificate`);
           }
         } catch (decryptError) {
-          console.warn(`[AgeGuard] Could not decrypt certificate ${certificate.serialNumber}:`, decryptError);
+          console.warn(`[AgeGuard] Error processing certificate:`, decryptError);
           continue;
         }
       }
@@ -232,7 +268,7 @@ export default function AgeVerificationGuard({ children }) {
               </p>
 
               <Button 
-                onClick={() => window.location.href = 'http://localhost:3000'}
+                onClick={() => window.location.href = 'http://localhost:3001?returnUrl=' + encodeURIComponent(window.location.href)}
                 className="w-full"
               >
                 Get Age Verified at CommonSource
