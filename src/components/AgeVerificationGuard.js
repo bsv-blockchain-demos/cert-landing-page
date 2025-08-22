@@ -11,7 +11,7 @@ import { Loader2, ShieldX, ShieldCheck } from 'lucide-react';
 
 const MINIMUM_AGE = 18;
 const COMMON_SOURCE_SERVER_KEY = process.env.NEXT_PUBLIC_SERVER_PUBLIC_KEY || "024c144093f5a2a5f71ce61dce874d3f1ada840446cebdd283b6a8ccfe9e83d9e4";
-const COMMON_SOURCE_ONBOARDING_URL = process.env.NEXT_PUBLIC_COMMON_SOURCE_URL || "https://commonsource-onboarding-e48e2juy2.vercel.app";
+const COMMON_SOURCE_ONBOARDING_URL = process.env.NEXT_PUBLIC_COMMON_SOURCE_URL || "https://common-source-onboarding.vercel.app";
 
 /**
  * Age Verification Guard Component
