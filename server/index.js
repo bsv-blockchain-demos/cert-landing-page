@@ -13,7 +13,7 @@ dotenv.config();
 const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY;
 const WALLET_STORAGE_URL = process.env.WALLET_STORAGE_URL;
 
-const COMMON_SOURCE_CERT_TYPE = Buffer.from("CommonSource user identity").toString('base64');
+const COMMON_SOURCE_CERT_TYPE = Buffer.from("Bvc").toString('base64');
 
 console.log("SERVER_PRIVATE_KEY", SERVER_PRIVATE_KEY);
 console.log("WALLET_STORAGE_URL", WALLET_STORAGE_URL);
