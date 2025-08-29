@@ -14,7 +14,7 @@ export async function POST(req) {
         ];
     }
     try {
-        const userWallet = new WalletClient('auto', 'localhost:4000');
+        const userWallet = new WalletClient('json-api', 'localhost');
 
         if (!userWallet) {
             return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
@@ -22,8 +22,8 @@ export async function POST(req) {
 
         // Lists all certificates in the user wallet from this certifier and type
         const certificates = await userWallet.listCertificates({
-            certifiers: ["02f4403c1eecce28c8c82aab508ecdb763b8d924d4a235350c4e805d4e2d7f8819"], // Pubkey from server where the certificate was created
-            types: [Buffer.from("CommonSource user identity").toString('base64')],
+            certifiers: [serverPubKey],
+            types: [Utils.toBase64(Utils.toArray('Bdid', 'base64')), Utils.toBase64(Utils.toArray('Bvc', 'base64'))],
             limit: 1,
         });
 
