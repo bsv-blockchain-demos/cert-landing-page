@@ -16,7 +16,7 @@ export const WalletContextProvider = ({ children }) => {
     const initializeWallet = useCallback(async () => {
         try {
             // Connect to wallet using proper localhost pattern
-            const newWallet = new WalletClient('auto', 'localhost');
+            const newWallet = new WalletClient('json-api', 'localhost');
 
             const isConnected = await newWallet.isAuthenticated();
             if (!isConnected) {

@@ -111,7 +111,7 @@ export class BsvDidService {
         outputs: [{
           satoshis: 1,
           lockingScript: lockingScript.toHex(),
-          outputDescription: 'DID Document',
+          outputDescription: 'Bdid',
           basket: 'tm did',
           customInstructions: JSON.stringify({
             protocolId: this.protocolId,
