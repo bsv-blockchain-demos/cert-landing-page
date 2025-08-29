@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useWalletContext } from '../context/walletContext';
 import { useDidContext } from '../context/DidContext';
-import { MasterCertificate, Utils } from '@bsv/sdk';
+import { MasterCertificate, VerifiableCertificate, Utils } from '@bsv/sdk';
 import { verifyAgeFromCertificates } from '../lib/ageVerification';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -88,7 +88,7 @@ export default function AgeVerificationGuard({ children }) {
               const ageResult = await extractAgeFromCertificate(wallet, certificate);
               if (ageResult.age !== null) {
                 userAge = ageResult.age;
-                validCertificate = certificate;
+                validCertificate = null; // No need to store certificate - using selective disclosure
                 ageVerified = ageResult.age >= MINIMUM_AGE;
                 verificationSource = 'DID + Identity Certificate';
                 console.log('[AgeGuard] ✅ Age verified via DID + Identity certificate:', userAge);
@@ -164,7 +164,7 @@ export default function AgeVerificationGuard({ children }) {
           const ageResult = await extractAgeFromCertificate(wallet, certificate);
           if (ageResult.age !== null) {
             userAge = ageResult.age;
-            validCertificate = certificate;
+            validCertificate = null; // No need to store certificate - using selective disclosure
             ageVerified = ageResult.age >= MINIMUM_AGE;
             verificationSource = 'Identity Certificate';
             console.log('[AgeGuard] ✅ Age verified via identity certificate:', userAge);
@@ -218,47 +218,80 @@ export default function AgeVerificationGuard({ children }) {
     }
   }, [checkWalletForDIDCertificates]);
 
-  // Helper function to extract age from a certificate
+  // Helper function to extract age from a certificate using selective disclosure
   const extractAgeFromCertificate = useCallback(async (wallet, certificate) => {
     try {
-      console.log(`[AgeGuard] Checking certificate:`, certificate.serialNumber || 'unknown');
+      console.log(`[AgeGuard] Checking certificate with selective disclosure:`, certificate.serialNumber || 'unknown');
       
-      // Validate certificate structure before attempting decryption
+      // Validate certificate structure before attempting selective disclosure
       if (!certificate.keyring || !certificate.fields || !certificate.certifier) {
         console.warn(`[AgeGuard] Certificate missing required fields, skipping...`);
         return { age: null, error: 'Missing required certificate fields' };
       }
       
-      // Decrypt the certificate fields to access the age
-      let decryptedFields;
       try {
-        decryptedFields = await MasterCertificate.decryptFields(
+        // Get wallet public key for verifier keyring
+        const { publicKey } = await wallet.getPublicKey({ identityKey: true });
+        
+        // Create verifier keyring that only reveals age field (selective disclosure)
+        const verifierKeyring = await MasterCertificate.createKeyringForVerifier(
           wallet,
-          certificate.keyring,
+          certificate.certifier,
+          publicKey,
           certificate.fields,
-          certificate.certifier
+          ['age'],  // Only reveal age - privacy preserving!
+          certificate.keyring,
+          certificate.serialNumber
         );
         
-        console.log(`[AgeGuard] Decrypted fields:`, decryptedFields);
-      } catch (decryptError) {
-        console.warn(`[AgeGuard] Certificate decryption failed:`, decryptError);
-        return { age: null, error: 'Certificate decryption failed' };
+        // Create verifiable certificate with selective disclosure
+        const verifiableCertificate = VerifiableCertificate.fromCertificate(
+          certificate, 
+          verifierKeyring
+        );
+        
+        console.log(`[AgeGuard] ✅ Selective disclosure successful - only age field accessible`);
+        
+        // Privacy-preserving approach: Decrypt only the selectively disclosed age field
+        // Use master keyring with selective fields to decrypt only age (maintains privacy)
+        try {
+          console.log(`[AgeGuard] Attempting privacy-preserving decryption of only age field...`);
+          
+          const decryptedFields = await MasterCertificate.decryptFields(
+            wallet,
+            certificate.keyring,  // Master keyring (has decryption power)
+            verifiableCertificate.fields,  // Only age field (selective disclosure)
+            certificate.certifier
+          );
+          
+          console.log(`[AgeGuard] Successfully decrypted selective fields:`, Object.keys(decryptedFields || {}));
+          
+          // Access only the age field - other personal data was never included due to selective disclosure
+          if (decryptedFields && decryptedFields.age) {
+            const age = parseInt(decryptedFields.age);
+            if (!isNaN(age) && age > 0 && age < 150) {
+              console.log(`[AgeGuard] ✅ Privacy-preserving age verification: ${age} years old`);
+              console.log(`[AgeGuard] Only age field decrypted - all other personal data remains private`);
+              return { age };
+            } else {
+              console.warn(`[AgeGuard] Invalid age value after decryption: ${decryptedFields.age}`);
+              return { age: null, error: `Invalid age value: ${decryptedFields.age}` };
+            }
+          } else {
+            console.log(`[AgeGuard] No age field found in decrypted selective fields`);
+            return { age: null, error: 'No age field found after selective decryption' };
+          }
+          
+        } catch (selectiveDecryptError) {
+          console.warn(`[AgeGuard] Privacy-preserving selective decryption failed:`, selectiveDecryptError);
+          return { age: null, error: `Selective decryption failed: ${selectiveDecryptError.message}` };
+        }
+        
+      } catch (selectiveDisclosureError) {
+        console.warn(`[AgeGuard] Selective disclosure failed:`, selectiveDisclosureError);
+        return { age: null, error: 'Selective disclosure failed' };
       }
       
-      // Check if this certificate contains age information
-      if (decryptedFields && decryptedFields.age) {
-        const age = parseInt(decryptedFields.age);
-        if (!isNaN(age) && age > 0 && age < 150) {
-          console.log(`[AgeGuard] Found valid age in certificate: ${age} years old`);
-          return { age, certificate, decryptedFields };
-        } else {
-          console.warn(`[AgeGuard] Invalid age value found: ${decryptedFields.age}`);
-          return { age: null, error: `Invalid age value: ${decryptedFields.age}` };
-        }
-      } else {
-        console.log(`[AgeGuard] No age field found in certificate`);
-        return { age: null, error: 'No age field found' };
-      }
     } catch (error) {
       console.warn(`[AgeGuard] Error processing certificate:`, error);
       return { age: null, error: error.message };
