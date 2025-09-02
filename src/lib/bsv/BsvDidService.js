@@ -185,8 +185,7 @@ export class BsvDidService {
    */
   async resolveDIDFromDatabase(did) {
     try {
-      // This would integrate with your existing MongoDB connection
-      // For now, we'll use a fetch to the existing API structure
+      // Fetch from the existing API structure
       const response = await fetch('/api/resolve-did', {
         method: 'POST',
         headers: {
