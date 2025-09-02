@@ -216,7 +216,7 @@ export default function AgeVerificationGuard({ children }) {
     } finally {
       setIsLoading(false);
     }
-  }, [checkWalletForDIDCertificates]);
+  }, [checkWalletForDIDCertificates, extractOver18FromCertificate]);
 
   // Helper function to extract over18 status from a certificate using selective disclosure
   const extractOver18FromCertificate = useCallback(async (wallet, certificate) => {
@@ -405,7 +405,7 @@ export default function AgeVerificationGuard({ children }) {
             <Alert>
               <AlertDescription className="text-center">
                 <strong>Privacy-Preserving Age Verification</strong><br />
-                This demo uses BSV blockchain certificates with selective disclosure - we only verify you're over 18, not your exact age.
+                This demo uses BSV blockchain certificates with selective disclosure - we only verify you&apos;re over 18, not your exact age.
               </AlertDescription>
             </Alert>
 
@@ -414,7 +414,7 @@ export default function AgeVerificationGuard({ children }) {
                 <h4 className="font-semibold text-blue-900 mb-2">🔒 How It Works</h4>
                 <div className="text-sm text-blue-800 space-y-2">
                   <p><strong>1. BSV Certificate:</strong> Your identity is cryptographically verified and stored on the BSV blockchain</p>
-                  <p><strong>2. Selective Disclosure:</strong> You control what data to share - this app only sees "over18: true/false"</p>
+                  <p><strong>2. Selective Disclosure:</strong> You control what data to share - this app only sees &quot;over18: true/false&quot;</p>
                   <p><strong>3. Privacy Preserved:</strong> Your name, address, exact age, and other personal data remain completely private</p>
                 </div>
               </div>
@@ -422,7 +422,7 @@ export default function AgeVerificationGuard({ children }) {
               <div className="bg-green-50 p-3 rounded-lg">
                 <p className="text-sm text-green-800">
                   <strong>✨ What makes this special:</strong> Traditional systems require you to share all your personal information. 
-                  With BSV certificates, you prove you're over 18 without revealing anything else!
+                  With BSV certificates, you prove you&apos;re over 18 without revealing anything else!
                 </p>
               </div>
 
