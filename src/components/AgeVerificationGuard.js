@@ -85,13 +85,13 @@ export default function AgeVerificationGuard({ children }) {
             
             // Process identity certificates that might be linked to this DID
             for (const certificate of identityCerts) {
-              const ageResult = await extractAgeFromCertificate(wallet, certificate);
-              if (ageResult.age !== null) {
-                userAge = ageResult.age;
+              const verificationResult = await extractOver18FromCertificate(wallet, certificate);
+              if (verificationResult.over18 !== null) {
+                userAge = verificationResult.over18 ? '18+' : 'under 18'; // For display purposes only
                 validCertificate = null; // No need to store certificate - using selective disclosure
-                ageVerified = ageResult.age >= MINIMUM_AGE;
+                ageVerified = verificationResult.over18;
                 verificationSource = 'DID + Identity Certificate';
-                console.log('[AgeGuard] ✅ Age verified via DID + Identity certificate:', userAge);
+                console.log('[AgeGuard] ✅ Over18 verified via DID + Identity certificate:', verificationResult.over18);
                 break;
               }
             }
@@ -161,13 +161,13 @@ export default function AgeVerificationGuard({ children }) {
 
         // Process identity certificates
         for (const certificate of certificates) {
-          const ageResult = await extractAgeFromCertificate(wallet, certificate);
-          if (ageResult.age !== null) {
-            userAge = ageResult.age;
+          const verificationResult = await extractOver18FromCertificate(wallet, certificate);
+          if (verificationResult.over18 !== null) {
+            userAge = verificationResult.over18 ? '18+' : 'under 18'; // For display purposes only
             validCertificate = null; // No need to store certificate - using selective disclosure
-            ageVerified = ageResult.age >= MINIMUM_AGE;
+            ageVerified = verificationResult.over18;
             verificationSource = 'Identity Certificate';
-            console.log('[AgeGuard] ✅ Age verified via identity certificate:', userAge);
+            console.log('[AgeGuard] ✅ Over18 verified via identity certificate:', verificationResult.over18);
             break;
           }
         }
@@ -218,28 +218,29 @@ export default function AgeVerificationGuard({ children }) {
     }
   }, [checkWalletForDIDCertificates]);
 
-  // Helper function to extract age from a certificate using selective disclosure
-  const extractAgeFromCertificate = useCallback(async (wallet, certificate) => {
+  // Helper function to extract over18 status from a certificate using selective disclosure
+  const extractOver18FromCertificate = useCallback(async (wallet, certificate) => {
     try {
-      console.log(`[AgeGuard] Checking certificate with selective disclosure:`, certificate.serialNumber || 'unknown');
+      console.log(`[AgeGuard] 🔍 Checking certificate with selective disclosure:`, certificate.serialNumber || 'unknown');
       
       // Validate certificate structure before attempting selective disclosure
       if (!certificate.keyring || !certificate.fields || !certificate.certifier) {
         console.warn(`[AgeGuard] Certificate missing required fields, skipping...`);
-        return { age: null, error: 'Missing required certificate fields' };
+        return { over18: null, error: 'Missing required certificate fields' };
       }
       
       try {
         // Get wallet public key for verifier keyring
         const { publicKey } = await wallet.getPublicKey({ identityKey: true });
         
-        // Create verifier keyring that only reveals age field (selective disclosure)
+        // Create verifier keyring that only reveals over18 field (selective disclosure)
+        console.log(`[AgeGuard] 🔒 Creating selective disclosure - ONLY revealing over18 status...`);
         const verifierKeyring = await MasterCertificate.createKeyringForVerifier(
           wallet,
           certificate.certifier,
           publicKey,
           certificate.fields,
-          ['age'],  // Only reveal age - privacy preserving!
+          ['over18'],  // Only reveal over18 boolean - maximum privacy preservation!
           certificate.keyring,
           certificate.serialNumber
         );
@@ -250,51 +251,47 @@ export default function AgeVerificationGuard({ children }) {
           verifierKeyring
         );
         
-        console.log(`[AgeGuard] ✅ Selective disclosure successful - only age field accessible`);
+        console.log(`[AgeGuard] ✅ Selective disclosure successful - only over18 field accessible`);
+        console.log(`[AgeGuard] 🛡️  Privacy Protected: Name, address, exact age, and ALL other personal data remain private`);
         
-        // Privacy-preserving approach: Decrypt only the selectively disclosed age field
-        // Use master keyring with selective fields to decrypt only age (maintains privacy)
+        // Privacy-preserving approach: Decrypt only the selectively disclosed over18 field
+        // Use master keyring with selective fields to decrypt only over18 (maintains privacy)
         try {
-          console.log(`[AgeGuard] Attempting privacy-preserving decryption of only age field...`);
+          console.log(`[AgeGuard] 🔓 Attempting privacy-preserving decryption of ONLY over18 boolean...`);
           
           const decryptedFields = await MasterCertificate.decryptFields(
             wallet,
             certificate.keyring,  // Master keyring (has decryption power)
-            verifiableCertificate.fields,  // Only age field (selective disclosure)
+            verifiableCertificate.fields,  // Only over18 field (selective disclosure)
             certificate.certifier
           );
           
-          console.log(`[AgeGuard] Successfully decrypted selective fields:`, Object.keys(decryptedFields || {}));
+          console.log(`[AgeGuard] ✅ Successfully decrypted selective fields:`, Object.keys(decryptedFields || {}));
           
-          // Access only the age field - other personal data was never included due to selective disclosure
-          if (decryptedFields && decryptedFields.age) {
-            const age = parseInt(decryptedFields.age);
-            if (!isNaN(age) && age > 0 && age < 150) {
-              console.log(`[AgeGuard] ✅ Privacy-preserving age verification: ${age} years old`);
-              console.log(`[AgeGuard] Only age field decrypted - all other personal data remains private`);
-              return { age };
-            } else {
-              console.warn(`[AgeGuard] Invalid age value after decryption: ${decryptedFields.age}`);
-              return { age: null, error: `Invalid age value: ${decryptedFields.age}` };
-            }
+          // Access only the over18 field - other personal data was never included due to selective disclosure
+          if (decryptedFields && typeof decryptedFields.over18 !== 'undefined') {
+            const over18 = decryptedFields.over18 === true || decryptedFields.over18 === 'true';
+            console.log(`[AgeGuard] 🎉 Privacy-preserving verification complete: over18 = ${over18}`);
+            console.log(`[AgeGuard] 🔐 ONLY over18 boolean revealed - all other personal data remains private`);
+            return { over18 };
           } else {
-            console.log(`[AgeGuard] No age field found in decrypted selective fields`);
-            return { age: null, error: 'No age field found after selective decryption' };
+            console.log(`[AgeGuard] No over18 field found in decrypted selective fields`);
+            return { over18: null, error: 'No over18 field found after selective decryption' };
           }
           
         } catch (selectiveDecryptError) {
           console.warn(`[AgeGuard] Privacy-preserving selective decryption failed:`, selectiveDecryptError);
-          return { age: null, error: `Selective decryption failed: ${selectiveDecryptError.message}` };
+          return { over18: null, error: `Selective decryption failed: ${selectiveDecryptError.message}` };
         }
         
       } catch (selectiveDisclosureError) {
         console.warn(`[AgeGuard] Selective disclosure failed:`, selectiveDisclosureError);
-        return { age: null, error: 'Selective disclosure failed' };
+        return { over18: null, error: 'Selective disclosure failed' };
       }
       
     } catch (error) {
       console.warn(`[AgeGuard] Error processing certificate:`, error);
-      return { age: null, error: error.message };
+      return { over18: null, error: error.message };
     }
   }, []);
 
@@ -407,14 +404,30 @@ export default function AgeVerificationGuard({ children }) {
           <CardContent className="space-y-4">
             <Alert>
               <AlertDescription className="text-center">
-                You need an age-verified certificate to access this website.
+                <strong>Privacy-Preserving Age Verification</strong><br />
+                This demo uses BSV blockchain certificates with selective disclosure - we only verify you're over 18, not your exact age.
               </AlertDescription>
             </Alert>
 
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-6">
+              <div className="bg-blue-50 p-4 rounded-lg text-left">
+                <h4 className="font-semibold text-blue-900 mb-2">🔒 How It Works</h4>
+                <div className="text-sm text-blue-800 space-y-2">
+                  <p><strong>1. BSV Certificate:</strong> Your identity is cryptographically verified and stored on the BSV blockchain</p>
+                  <p><strong>2. Selective Disclosure:</strong> You control what data to share - this app only sees "over18: true/false"</p>
+                  <p><strong>3. Privacy Preserved:</strong> Your name, address, exact age, and other personal data remain completely private</p>
+                </div>
+              </div>
+
+              <div className="bg-green-50 p-3 rounded-lg">
+                <p className="text-sm text-green-800">
+                  <strong>✨ What makes this special:</strong> Traditional systems require you to share all your personal information. 
+                  With BSV certificates, you prove you're over 18 without revealing anything else!
+                </p>
+              </div>
+
               <p className="text-sm text-muted-foreground">
-                This website requires proof that you are at least {MINIMUM_AGE} years old.
-                Please get your age verified through our CommonSource identity system.
+                Ready to see privacy-preserving identity verification in action? Get your certificate from CommonSource:
               </p>
 
               <Button 
