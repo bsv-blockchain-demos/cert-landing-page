@@ -26,6 +26,83 @@ export default function AgeVerificationGuard({ children }) {
   const [verificationResult, setVerificationResult] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Helper function to extract over18 status from a certificate using selective disclosure
+  const extractOver18FromCertificate = useCallback(async (wallet, certificate) => {
+    try {
+      console.log(`[AgeGuard] 🔍 Checking certificate with selective disclosure:`, certificate.serialNumber || 'unknown');
+      
+      // Validate certificate structure before attempting selective disclosure
+      if (!certificate.keyring || !certificate.fields || !certificate.certifier) {
+        console.warn(`[AgeGuard] Certificate missing required fields, skipping...`);
+        return { over18: null, error: 'Missing required certificate fields' };
+      }
+      
+      try {
+        // Get wallet public key for verifier keyring
+        const { publicKey } = await wallet.getPublicKey({ identityKey: true });
+        
+        // Create verifier keyring that only reveals over18 field (selective disclosure)
+        console.log(`[AgeGuard] 🔒 Creating selective disclosure - ONLY revealing over18 status...`);
+        const verifierKeyring = await MasterCertificate.createKeyringForVerifier(
+          wallet,
+          certificate.certifier,
+          publicKey,
+          certificate.fields,
+          ['over18'],  // Only reveal over18 boolean - maximum privacy preservation!
+          certificate.keyring,
+          certificate.serialNumber
+        );
+        
+        // Create verifiable certificate with selective disclosure
+        const verifiableCertificate = VerifiableCertificate.fromCertificate(
+          certificate, 
+          verifierKeyring
+        );
+        
+        console.log(`[AgeGuard] ✅ Selective disclosure successful - only over18 field accessible`);
+        console.log(`[AgeGuard] 🛡️  Privacy Protected: Name, address, exact age, and ALL other personal data remain private`);
+        
+        // Privacy-preserving approach: Decrypt only the selectively disclosed over18 field
+        // Use master keyring with selective fields to decrypt only over18 (maintains privacy)
+        try {
+          console.log(`[AgeGuard] 🔓 Attempting privacy-preserving decryption of ONLY over18 boolean...`);
+          
+          const decryptedFields = await MasterCertificate.decryptFields(
+            wallet,
+            certificate.keyring,  // Master keyring (has decryption power)
+            verifiableCertificate.fields,  // Only over18 field (selective disclosure)
+            certificate.certifier
+          );
+          
+          console.log(`[AgeGuard] ✅ Successfully decrypted selective fields:`, Object.keys(decryptedFields || {}));
+          
+          // Access only the over18 field - other personal data was never included due to selective disclosure
+          if (decryptedFields && typeof decryptedFields.over18 !== 'undefined') {
+            const over18 = decryptedFields.over18 === true || decryptedFields.over18 === 'true';
+            console.log(`[AgeGuard] 🎉 Privacy-preserving verification complete: over18 = ${over18}`);
+            console.log(`[AgeGuard] 🔐 ONLY over18 boolean revealed - all other personal data remains private`);
+            return { over18 };
+          } else {
+            console.log(`[AgeGuard] No over18 field found in decrypted selective fields`);
+            return { over18: null, error: 'No over18 field found after selective decryption' };
+          }
+          
+        } catch (selectiveDecryptError) {
+          console.warn(`[AgeGuard] Privacy-preserving selective decryption failed:`, selectiveDecryptError);
+          return { over18: null, error: `Selective decryption failed: ${selectiveDecryptError.message}` };
+        }
+        
+      } catch (selectiveDisclosureError) {
+        console.warn(`[AgeGuard] Selective disclosure failed:`, selectiveDisclosureError);
+        return { over18: null, error: 'Selective disclosure failed' };
+      }
+      
+    } catch (error) {
+      console.warn(`[AgeGuard] Error processing certificate:`, error);
+      return { over18: null, error: error.message };
+    }
+  }, []);
+
   // Perform age verification using unified approach (certificates + DID documents)
   const performAgeVerification = useCallback(async (wallet) => {
     try {
@@ -217,83 +294,6 @@ export default function AgeVerificationGuard({ children }) {
       setIsLoading(false);
     }
   }, [checkWalletForDIDCertificates, extractOver18FromCertificate]);
-
-  // Helper function to extract over18 status from a certificate using selective disclosure
-  const extractOver18FromCertificate = useCallback(async (wallet, certificate) => {
-    try {
-      console.log(`[AgeGuard] 🔍 Checking certificate with selective disclosure:`, certificate.serialNumber || 'unknown');
-      
-      // Validate certificate structure before attempting selective disclosure
-      if (!certificate.keyring || !certificate.fields || !certificate.certifier) {
-        console.warn(`[AgeGuard] Certificate missing required fields, skipping...`);
-        return { over18: null, error: 'Missing required certificate fields' };
-      }
-      
-      try {
-        // Get wallet public key for verifier keyring
-        const { publicKey } = await wallet.getPublicKey({ identityKey: true });
-        
-        // Create verifier keyring that only reveals over18 field (selective disclosure)
-        console.log(`[AgeGuard] 🔒 Creating selective disclosure - ONLY revealing over18 status...`);
-        const verifierKeyring = await MasterCertificate.createKeyringForVerifier(
-          wallet,
-          certificate.certifier,
-          publicKey,
-          certificate.fields,
-          ['over18'],  // Only reveal over18 boolean - maximum privacy preservation!
-          certificate.keyring,
-          certificate.serialNumber
-        );
-        
-        // Create verifiable certificate with selective disclosure
-        const verifiableCertificate = VerifiableCertificate.fromCertificate(
-          certificate, 
-          verifierKeyring
-        );
-        
-        console.log(`[AgeGuard] ✅ Selective disclosure successful - only over18 field accessible`);
-        console.log(`[AgeGuard] 🛡️  Privacy Protected: Name, address, exact age, and ALL other personal data remain private`);
-        
-        // Privacy-preserving approach: Decrypt only the selectively disclosed over18 field
-        // Use master keyring with selective fields to decrypt only over18 (maintains privacy)
-        try {
-          console.log(`[AgeGuard] 🔓 Attempting privacy-preserving decryption of ONLY over18 boolean...`);
-          
-          const decryptedFields = await MasterCertificate.decryptFields(
-            wallet,
-            certificate.keyring,  // Master keyring (has decryption power)
-            verifiableCertificate.fields,  // Only over18 field (selective disclosure)
-            certificate.certifier
-          );
-          
-          console.log(`[AgeGuard] ✅ Successfully decrypted selective fields:`, Object.keys(decryptedFields || {}));
-          
-          // Access only the over18 field - other personal data was never included due to selective disclosure
-          if (decryptedFields && typeof decryptedFields.over18 !== 'undefined') {
-            const over18 = decryptedFields.over18 === true || decryptedFields.over18 === 'true';
-            console.log(`[AgeGuard] 🎉 Privacy-preserving verification complete: over18 = ${over18}`);
-            console.log(`[AgeGuard] 🔐 ONLY over18 boolean revealed - all other personal data remains private`);
-            return { over18 };
-          } else {
-            console.log(`[AgeGuard] No over18 field found in decrypted selective fields`);
-            return { over18: null, error: 'No over18 field found after selective decryption' };
-          }
-          
-        } catch (selectiveDecryptError) {
-          console.warn(`[AgeGuard] Privacy-preserving selective decryption failed:`, selectiveDecryptError);
-          return { over18: null, error: `Selective decryption failed: ${selectiveDecryptError.message}` };
-        }
-        
-      } catch (selectiveDisclosureError) {
-        console.warn(`[AgeGuard] Selective disclosure failed:`, selectiveDisclosureError);
-        return { over18: null, error: 'Selective disclosure failed' };
-      }
-      
-    } catch (error) {
-      console.warn(`[AgeGuard] Error processing certificate:`, error);
-      return { over18: null, error: error.message };
-    }
-  }, []);
 
   // Initialize wallet and perform verification
   useEffect(() => {
