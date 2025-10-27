@@ -9,7 +9,7 @@ A Next.js application demonstrating passwordless authentication using BSV (Bitco
 - **Age-Gated Content**: Demo whiskey & cigars store requiring 18+ verification
 - **Cross-Platform Compatibility**: Certificates work across multiple applications in the same trust circle
 - **DID Certificate Support**: W3C-compliant Decentralized Identifiers for identity management
-- **CommonSource Integration**: Seamless onboarding flow for certificate issuance
+- **Age Verification Certificate Integration**: Seamless onboarding flow for certificate issuance
 - **Docker Deployment**: Containerized application with GitHub Actions CI/CD
 
 ## 🏗️ Architecture Overview
@@ -28,7 +28,7 @@ A Next.js application demonstrating passwordless authentication using BSV (Bitco
 - **AgeVerificationGuard** (`src/components/AgeVerificationGuard.js`)
   - Implements privacy-preserving age verification
   - Uses selective disclosure to access only age field
-  - Redirects to CommonSource Onboarding if no valid certificate
+  - Redirects to Age Verification Onboarding if no valid certificate
 
 - **WhiskeyCigarsStore** (`src/components/WhiskeyCigarsStore.js`)
   - Demo age-gated content requiring 18+ verification
@@ -52,7 +52,7 @@ A Next.js application demonstrating passwordless authentication using BSV (Bitco
 
 - Node.js 18+ installed
 - BSV wallet with valid certificates (MetaNet Desktop recommended)
-- Access to CommonSource Onboarding for certificate issuance
+- Access to Age Verification Onboarding for certificate issuance
 
 ### Installation
 
@@ -73,7 +73,7 @@ A Next.js application demonstrating passwordless authentication using BSV (Bitco
    # Required - Certificate verification public key
    NEXT_PUBLIC_SERVER_PUBLIC_KEY=024c144093f5a2a5f71ce61dce874d3f1ada840446cebdd283b6a8ccfe9e83d9e4
    
-   # Required - CommonSource Onboarding URL for certificate issuance
+   # Required - CS Onboarding URL for certificate issuance
    NEXT_PUBLIC_COMMON_SOURCE_URL=https://common-source-onboarding.vercel.app
    
    # Optional - Server private key for certificate operations
@@ -275,7 +275,7 @@ src/
 
 1. **Initial Visit**: Access the application at http://localhost:3000
 2. **Age Gate**: You'll see the age verification screen
-3. **No Certificate**: Click "Get Verified" to redirect to CommonSource Onboarding
+3. **No Certificate**: Click "Get Verified" to redirect to Age Verification Onboarding
 4. **Complete Onboarding**: Fill in your details (ensure age is 18+)
 5. **Return**: After certificate issuance, return to the application
 6. **Automatic Verification**: The app will verify your age using selective disclosure
@@ -313,14 +313,14 @@ Applications can integrate this authentication system by:
 
 ## 📄 License
 
-This project is part of the CommonSource BSV ecosystem. Please refer to the project license for usage terms.
+This project is part of the CS BSV ecosystem. Please refer to the project license for usage terms.
 
 ## 🆘 Support
 
 For questions or issues:
 - Create an issue in the repository
 - Contact the BSV development team
-- Check CommonSource documentation
+- Check CS documentation
 
 ---
 

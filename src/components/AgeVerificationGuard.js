@@ -434,7 +434,7 @@ export default function AgeVerificationGuard({ children }) {
                 onClick={() => window.location.href = `${COMMON_SOURCE_ONBOARDING_URL}?returnUrl=${encodeURIComponent(window.location.href)}`}
                 className="w-full"
               >
-                Get Age Verified at CommonSource
+                Get Age Verified
               </Button>
 
               <p className="text-xs text-muted-foreground">
