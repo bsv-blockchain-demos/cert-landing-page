@@ -81,4 +81,4 @@ The Dockerfile builds a standalone Next.js server and serves it on port 8080. Pu
 
 ## Licence
 
-No licence file or package licence declaration is included in this checkout. The maintainers need to confirm the intended terms.
+**Open BSV Licence v6.** See [LICENSE.txt](LICENSE.txt) for the full terms. The licence applies to this project's original code and documentation and restricts use to the BSV blockchain defined in the licence. Third-party code, assets and referenced standards retain their respective terms.

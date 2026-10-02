@@ -39,5 +39,6 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.6"
   },
-  "type": "module"
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE.txt"
 }
