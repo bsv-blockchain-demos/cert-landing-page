@@ -1,327 +1,84 @@
-# BSV Certificate Authentication with Age Verification
+# BSV certificate age-gate demo
 
-A Next.js application demonstrating passwordless authentication using BSV (Bitcoin SV) certificates with privacy-preserving age verification through selective disclosure. This project showcases how users can authenticate and prove their age without revealing unnecessary personal information.
+A Next.js application that connects to a BSV wallet, reads an `over18` certificate field and conditionally displays a demonstration whiskey and cigars storefront. It includes experimental DID and credential routes alongside the browser-based age gate.
 
-## 🎯 Key Features
+The active page is [`src/app/page.js`](src/app/page.js), which wraps the storefront in `AgeVerificationGuard`. This is a client-side demonstration, with the implementation limits described below.
 
-- **Passwordless Authentication**: Login using BSV certificates instead of passwords
-- **Privacy-Preserving Age Verification**: Uses selective disclosure to reveal ONLY age, keeping all other personal data private
-- **Age-Gated Content**: Demo whiskey & cigars store requiring 18+ verification
-- **Cross-Platform Compatibility**: Certificates work across multiple applications in the same trust circle
-- **DID Certificate Support**: W3C-compliant Decentralized Identifiers for identity management
-- **Age Verification Certificate Integration**: Seamless onboarding flow for certificate issuance
-- **Docker Deployment**: Containerized application with GitHub Actions CI/CD
+## How the current flow works
 
-## 🏗️ Architecture Overview
+1. Connect a BRC-100 wallet through `WalletClient`.
+2. Check for DID-related certificates, then fall back to certificates of the configured issuer and the legacy `Bvc` type used in the guard.
+3. Create a verifier keyring requesting `over18`, decrypt certificate fields through the connected wallet, and read the boolean value.
+4. Display the storefront when `over18` is `true`. If no suitable certificate is found, show a link to the configured onboarding application.
 
-### Authentication Flow
+The code reads the boolean `over18`, rather than calculating age from a date of birth in the active guard.
 
-1. **Wallet Connection**: User connects BSV wallet via `WalletClient`
-2. **Certificate Retrieval**: App requests certificates using certifier public key
-3. **Selective Disclosure**: Only the age field is made accessible through verifier keyring
-4. **Privacy-Preserving Decryption**: Uses master keyring with selective fields to decrypt ONLY age
-5. **Age Verification**: Validates user meets minimum age requirement (18+)
-6. **Access Granted**: User can access age-gated content while maintaining privacy
+## Run locally
 
-### Core Components
+Use Node.js 22, npm and a compatible wallet containing a certificate with an `over18` field. The issuing application must use a certificate type and issuer key compatible with this checkout.
 
-- **AgeVerificationGuard** (`src/components/AgeVerificationGuard.js`)
-  - Implements privacy-preserving age verification
-  - Uses selective disclosure to access only age field
-  - Redirects to Age Verification Onboarding if no valid certificate
-
-- **WhiskeyCigarsStore** (`src/components/WhiskeyCigarsStore.js`)
-  - Demo age-gated content requiring 18+ verification
-  - Shows practical application of age verification
-
-- **Wallet Context** (`src/context/walletContext.js`)
-  - Manages BSV wallet connection and authentication
-  - Handles identity key retrieval
-
-- **DID Context** (`src/context/DidContext.js`)
-  - Manages DID certificate checking and validation
-  - Handles W3C DID resolution
-
-- **Auth Context** (`src/context/authContext.js`)
-  - Stores authentication state and certificate data
-  - Manages user session
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+ installed
-- BSV wallet with valid certificates (MetaNet Desktop recommended)
-- Access to Age Verification Onboarding for certificate issuance
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-org/cert-landing-page.git
-   cd cert-landing-page
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Configure environment variables:
-   Create a `.env.local` file with the following:
-   ```env
-   # Required - Certificate verification public key
-   NEXT_PUBLIC_SERVER_PUBLIC_KEY=024c144093f5a2a5f71ce61dce874d3f1ada840446cebdd283b6a8ccfe9e83d9e4
-   
-   # Required - CS Onboarding URL for certificate issuance
-   NEXT_PUBLIC_COMMON_SOURCE_URL=https://common-source-onboarding.vercel.app
-   
-   # Optional - Server private key for certificate operations
-   SERVER_PRIVATE_KEY=your_private_key_here
-   
-   # Optional - BSV wallet storage service
-   WALLET_STORAGE_URL=https://store-us-1.bsvb.tech/
-   
-   # Optional - BSV network (main or test)
-   CHAIN=main
-   ```
-
-   For complete environment variable documentation, see [Environment Variables](#environment-variables) section below.
-
-4. Run the development server:
-   ```bash
-   npm run dev
-   ```
-
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-### Development Commands
-
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm start            # Start production server
-npm run lint         # Run ESLint for code quality
+```sh
+git clone https://github.com/bsv-blockchain-demos/cert-landing-page.git
+cd cert-landing-page
+npm ci
 ```
 
-## 🔐 Privacy & Security
+Create `.env.local` manually; no environment template is included:
 
-### Selective Disclosure Implementation
-
-This application implements **BRC-29 compliant selective disclosure** for privacy protection:
-
-1. **Traditional Approach (Privacy Risk)**:
-   ```javascript
-   // ❌ Decrypts ALL certificate fields
-   const decryptedFields = await MasterCertificate.decryptFields(
-     wallet, certificate.keyring, certificate.fields, certificate.certifier
-   );
-   // Exposes: username, email, residence, gender, work, age, etc.
-   ```
-
-2. **Our Privacy-Preserving Approach**:
-   ```javascript
-   // ✅ Creates verifier keyring for ONLY age field
-   const verifierKeyring = await MasterCertificate.createKeyringForVerifier(
-     wallet, certificate.certifier, verifierPublicKey,
-     certificate.fields, ['age'], // Only age field!
-     certificate.keyring, certificate.serialNumber
-   );
-   
-   // ✅ Decrypts using master keyring + selective fields
-   const decryptedFields = await MasterCertificate.decryptFields(
-     wallet, certificate.keyring, // Master keyring
-     verifiableCertificate.fields, // Only age field from selective disclosure
-     certificate.certifier
-   );
-   // Result: ONLY age is accessible, all other data remains private
-   ```
-
-### Security Features
-
-- **Certificate Verification**: All certificates are cryptographically verified
-- **Selective Field Access**: Users control which data fields are revealed
-- **Encrypted Storage**: Personal data encrypted until authorized decryption
-- **No Password Storage**: Eliminates password-related vulnerabilities
-
-## 📋 Environment Variables
-
-### Required Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_SERVER_PUBLIC_KEY` | Public key for certificate verification | `024c144093f5a2a5f71ce61dce874d3f1ada840446cebdd283b6a8ccfe9e83d9e4` |
-| `NEXT_PUBLIC_COMMON_SOURCE_URL` | CommonSource Onboarding URL | `https://common-source-onboarding.vercel.app` |
-
-### Optional Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SERVER_PRIVATE_KEY` | Server's BSV private key | - |
-| `WALLET_STORAGE_URL` | BSV wallet storage service | `https://store-us-1.bsvb.tech/` |
-| `CHAIN` | BSV network (main/test) | `main` |
-
-### DID/VC Configuration (Optional)
-
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_SERVER_DID` | Server's DID identifier |
-| `DID_TOPIC` | DID topic for resolution |
-| `VC_TOPIC` | Verifiable Credential topic |
-| `OVERLAY_SERVICE_URL` | Overlay service for DID resolution |
-| `CMSRC_PROTOCOL_ID` | Protocol identifier |
-
-
-## 🔌 API Endpoints
-
-### POST `/api/verify-certificate`
-Verifies BSV certificates and validates claims.
-
-**Request:**
-```json
-{
-  "certificate": {...},
-  "userIdentityKey": "public_key",
-  "verificationLevel": "comprehensive",
-  "requireCryptographicProof": false
-}
+```dotenv
+NEXT_PUBLIC_SERVER_PUBLIC_KEY=your_certifier_public_key
+NEXT_PUBLIC_COMMON_SOURCE_URL=https://your-onboarding-host.example
 ```
 
-**Response:**
-```json
-{
-  "verificationResult": {
-    "valid": true,
-    "claims": {...},
-    "verificationDetails": [...]
-  }
-}
+`NEXT_PUBLIC_SERVER_PUBLIC_KEY` is the certifier's public identity key. `NEXT_PUBLIC_COMMON_SOURCE_URL` is where the **Get Age Verified** button sends users. The code has defaults for both, but a local issuer should be configured explicitly.
+
+```sh
+npm run dev
 ```
 
-### POST `/api/resolve-did`
-Resolves DID to retrieve user data from overlay network.
+Open [localhost:3000](http://localhost:3000), connect the wallet, and test certificates with `over18` set to true and false, plus a wallet with no matching certificate. Confirm that only the true case displays the storefront.
 
-**Request:**
-```json
-{
-  "did": "did:bsv:example",
-  "fields": ["age", "username"]
-}
-```
+The related [age-verification](https://github.com/bsv-blockchain-demos/age-verification) and [Over18Certifier](https://github.com/bsv-blockchain-demos/Over18Certifier) repositories demonstrate certificate issuance. Check issuer keys, certificate types and field formats before connecting these projects; sharing an `over18` field does not establish compatibility by itself.
 
-### POST `/api/get-certificates`
-Retrieves user certificates with selective disclosure.
+## Implementation limits
 
-**Request:**
-```json
-{
-  "fieldsToReveal": ["age"]
-}
-```
+- **Field disclosure:** the guard requests an `over18` verifier keyring, but then calls `MasterCertificate.decryptFields` with the original master keyring and the full certificate field map. The current implementation does not enforce an `over18`-only decryption boundary.
+- **Certificate checks:** the age gate does not independently verify certificate signatures or revocation status. It should not be described as a complete certificate-verification service.
+- **Access control:** rendering the store is controlled in the browser. No protected server-side purchase workflow or authenticated application session is implemented by the guard.
+- **DID resolution:** `/api/resolve-did` returns a mock document. It does not resolve an overlay record.
+- **Certificate retrieval API:** `/api/get-certificates` is unfinished, including undefined identifiers, a localhost wallet connection and a mismatched response shape. It is not a working integration endpoint.
 
-## 🐳 Docker Deployment
+## API status
 
-### Build and Run with Docker
+| Route | Implemented behaviour |
+| --- | --- |
+| `POST /api/verify-certificate` | Accepts `{ certificate }`; checks required fields and VC expiry. Returns `{ valid, format, claims }` or an error. Does not verify a cryptographic signature. |
+| `POST /api/resolve-did` | Accepts `{ did }`; checks the basic format and returns a mock DID document. |
+| `POST /api/get-certificates` | Experimental and incomplete; see the limitations above. |
 
-```bash
-# Build the Docker image
-docker build -t cert-landing-page .
+The separate Express experiment in `server/` is not started by the package scripts. It reads `SERVER_PRIVATE_KEY` and `WALLET_STORAGE_URL`, hardcodes the main network and currently logs its private key at startup. Do not supply a valuable key to that experiment.
 
-# Run the container
-docker run -p 8080:8080 \
-  -e NEXT_PUBLIC_SERVER_PUBLIC_KEY=your_key \
-  -e NEXT_PUBLIC_COMMON_SOURCE_URL=https://common-source-onboarding.vercel.app \
-  cert-landing-page
-```
+## Development and deployment
 
-### GitHub Actions CI/CD
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Next.js development server |
+| `npm run build` | Create the production and standalone builds |
+| `npm start` | Start the production Next.js server |
+| `npm run lint` | Run the existing Next.js lint command |
 
-The project includes automated Docker builds via GitHub Actions:
+No automated test script is included. The build and lint commands can check the application structure, but they do not exercise wallet interactions or certificate disclosure.
 
-- Triggers on: Tags (`v*`), main branch pushes, and pull requests
-- Publishes to GitHub Container Registry (ghcr.io)
-- Workflow file: `.github/workflows/docker-publish.yml`
+The Dockerfile builds a standalone Next.js server and serves it on port 8080. Public environment variables must be present when `npm run build` runs. The Dockerfile currently has no build arguments for them, so runtime `docker run -e NEXT_PUBLIC_...` flags alone do not configure the browser bundle. Update the build configuration before deploying with your own issuer settings.
 
-## 📁 Project Structure
+## Source map
 
-```
-src/
-├── app/
-│   ├── api/
-│   │   ├── verify-certificate/   # Certificate verification
-│   │   ├── resolve-did/          # DID resolution
-│   │   └── get-certificates/     # Certificate retrieval
-│   ├── page.js                   # Main application
-│   ├── layout.js                 # App layout
-│   └── globals.css               # Global styles
-├── components/
-│   ├── AgeVerificationGuard.js   # Age verification logic
-│   ├── WhiskeyCigarsStore.js     # Demo age-gated content
-│   ├── toasts.js                 # Notifications
-│   └── ui/                       # UI components
-├── context/
-│   ├── walletContext.js          # Wallet management
-│   ├── DidContext.js             # DID management
-│   └── authContext.js            # Auth state
-└── lib/
-    ├── ageVerification.js         # Age verification utilities
-    ├── vcDataResolver.js          # VC data resolution
-    └── bsv/
-        ├── BsvDidService.js      # DID operations
-        └── BsvVcService.js       # VC operations
-```
+- [`src/components/AgeVerificationGuard.js`](src/components/AgeVerificationGuard.js): active certificate lookup and age gate
+- [`src/components/WhiskeyCigarsStore.js`](src/components/WhiskeyCigarsStore.js): demonstration storefront
+- [`src/context/`](src/context/): wallet, DID and authentication state
+- [`src/app/api/`](src/app/api/): experimental API routes
+- [`src/lib/bsv/`](src/lib/bsv/): DID and credential helpers
 
-## 🧪 Testing the Application
+## Licence
 
-1. **Initial Visit**: Access the application at http://localhost:3000
-2. **Age Gate**: You'll see the age verification screen
-3. **No Certificate**: Click "Get Verified" to redirect to Age Verification Onboarding
-4. **Complete Onboarding**: Fill in your details (ensure age is 18+)
-5. **Return**: After certificate issuance, return to the application
-6. **Automatic Verification**: The app will verify your age using selective disclosure
-7. **Access Granted**: Browse the demo whiskey & cigars store
-
-## 🤝 Third-Party Integration
-
-Applications can integrate this authentication system by:
-
-1. Using the same certifier public key for verification
-2. Implementing selective disclosure for privacy
-3. Following BRC-29 standards for certificate handling
-4. Maintaining compatible encryption/decryption protocols
-
-## 📚 Technical Standards
-
-- **BRC-42**: BSV Key Derivation Scheme
-- **BRC-29**: Selective Disclosure Protocol
-- **BRC-103**: Identity Certificates
-- **W3C DID**: Decentralized Identifiers v1.0
-
-## 🛠️ Development Guidelines
-
-### Before Starting Work
-- Always use plan mode to create implementation plans
-- Write plans to `.claude/tasks/TASK_NAME.md`
-- Research latest package versions and best practices
-- Get plan approval before implementation
-
-### During Development
-- Follow existing code conventions
-- Use established libraries (check package.json first)
-- Maintain privacy-first approach
-- Run lint checks before committing
-
-## 📄 License
-
-This project is part of the CS BSV ecosystem. Please refer to the project license for usage terms.
-
-## 🆘 Support
-
-For questions or issues:
-- Create an issue in the repository
-- Contact the BSV development team
-- Check CS documentation
-
----
-
-**Note**: This is a demonstration application showcasing privacy-preserving age verification. For production use, ensure proper security audits, key management, and compliance with relevant regulations.
+No licence file or package licence declaration is included in this checkout. The maintainers need to confirm the intended terms.
